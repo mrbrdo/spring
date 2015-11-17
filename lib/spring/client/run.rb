@@ -1,12 +1,14 @@
 require "rbconfig"
 require "socket"
 require "bundler"
+require "spring/io_helpers"
+require "spring/impl/run"
 
 module Spring
   module Client
     class Run < Command
-      FORWARDED_SIGNALS = %w(INT QUIT USR1 USR2 INFO) & Signal.list.keys
-      TIMEOUT = 1
+      include RunImpl
+      TIMEOUT = RunImpl::TIMEOUT
 
       def initialize(args)
         super
@@ -55,11 +57,11 @@ module Spring
       def run
         verify_server_version
 
-        application, client = UNIXSocket.pair
+        application, client = WorkerChannel.pair
 
         queue_signals
         connect_to_application(client)
-        run_command(client, application)
+        run_command(client, application.to_io)
       end
 
       def boot_server
@@ -108,7 +110,7 @@ ERROR
       end
 
       def connect_to_application(client)
-        server.send_io client
+        client.forward_to(server)
         send_json server, "args" => args, "default_rails_env" => default_rails_env
 
         if IO.select([server], [], [], TIMEOUT)
@@ -121,12 +123,11 @@ ERROR
       def run_command(client, application)
         log "sending command"
 
-        application.send_io STDOUT
-        application.send_io STDERR
-        application.send_io STDIN
+        send_std_io_to(application)
 
         send_json application, "args" => args, "env" => ENV.to_hash
 
+        IO.select([server])
         pid = server.gets
         pid = pid.chomp if pid
 
@@ -138,42 +139,13 @@ ERROR
         if pid && !pid.empty?
           log "got pid: #{pid}"
 
-          forward_signals(pid.to_i)
-          status = application.read.to_i
-
-          log "got exit status #{status}"
-
-          exit status
+          run_on(application, pid)
         else
           log "got no pid"
           exit 1
         end
       ensure
         application.close
-      end
-
-      def queue_signals
-        FORWARDED_SIGNALS.each do |sig|
-          trap(sig) { @signal_queue << sig }
-        end
-      end
-
-      def forward_signals(pid)
-        @signal_queue.each { |sig| kill sig, pid }
-
-        FORWARDED_SIGNALS.each do |sig|
-          trap(sig) { forward_signal sig, pid }
-        end
-      rescue Errno::ESRCH
-      end
-
-      def forward_signal(sig, pid)
-        kill(sig, pid)
-      rescue Errno::ESRCH
-        # If the application process is gone, then don't block the
-        # signal on this process.
-        trap(sig, 'DEFAULT')
-        Process.kill(sig, Process.pid)
       end
 
       def kill(sig, pid)
