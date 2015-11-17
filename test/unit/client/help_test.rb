@@ -1,8 +1,8 @@
 require_relative "../../helper"
 
-require 'spring/client/command'
-require 'spring/client/help'
-require 'spring/client'
+require 'spring-jruby/client/command'
+require 'spring-jruby/client/help'
+require 'spring-jruby/client'
 
 class HelpTest < ActiveSupport::TestCase
   def spring_commands

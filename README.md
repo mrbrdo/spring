@@ -1,11 +1,14 @@
 # Spring
 
-[![Build Status](https://travis-ci.org/rails/spring.svg?branch=master)](https://travis-ci.org/rails/spring)
-[![Gem Version](https://badge.fury.io/rb/spring.svg)](http://badge.fury.io/rb/spring)
-
 Spring is a Rails application preloader. It speeds up development by
 keeping your application running in the background so you don't need to
 boot it every time you run a test, rake task or migration.
+
+## This fork
+
+This fork adds JRuby support to spring. It uses a pool of preloaded workers to
+execute commands on, instead of forking on-demand - since JRuby does not support
+`Process.fork`.
 
 ## Features
 
@@ -16,11 +19,8 @@ boot it every time you run a test, rake task or migration.
 
 ## Compatibility
 
-* Ruby versions: MRI 1.9.3, MRI 2.0, MRI 2.1
-* Rails versions: 4.0+ (in Rails 4.1 and up Spring is included by default)
-
-Spring makes extensive use of `Process.fork`, so won't be able to
-provide a speed up on platforms which don't support forking (Windows, JRuby).
+* Ruby versions: JRuby 9k, MRI 1.9.3, MRI 2.0, MRI 2.1
+* Rails versions: 4.0+
 
 ## Walkthrough
 
@@ -29,10 +29,10 @@ provide a speed up on platforms which don't support forking (Windows, JRuby).
 Add spring to your Gemfile:
 
 ``` ruby
-gem "spring", group: :development
+gem "spring-jruby", group: :development
 ```
 
-(Note: using `gem "spring", git: "..."` *won't* work and is not a
+(Note: using `gem "spring-jruby", git: "..."` *won't* work and is not a
 supported way of using spring.)
 
 It's recommended to 'springify' the executables in your `bin/`
@@ -236,7 +236,7 @@ repository, it's possible to use spring without adding to your Gemfile.
 However, using spring binstubs without adding spring to the Gemfile is not
 supported.
 
-To use spring like this, do a `gem install spring` and then prefix
+To use spring like this, do a `gem install spring-jruby` and then prefix
 commands with `spring`. For example, rather than running `bin/rake -T`,
 you'd run `spring rake -T`.
 
