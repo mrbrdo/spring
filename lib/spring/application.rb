@@ -1,9 +1,11 @@
 require "spring/boot"
 require "set"
 require "pty"
+require "spring/impl/application"
 
 module Spring
   class Application
+    include ApplicationImpl
     attr_reader :manager, :watcher, :spring_env, :original_env
 
     def initialize(manager, original_env)
@@ -114,13 +116,9 @@ module Spring
       end
     end
 
-    def eager_preload
-      with_pty { preload }
-    end
-
     def run
       state :running
-      manager.puts
+      send_ready_to_manager
 
       loop do
         IO.select [manager, @interrupt.first]
@@ -128,17 +126,18 @@ module Spring
         if terminating? || watcher_stale? || preload_failed?
           exit
         else
-          serve manager.recv_io(UNIXSocket)
+          serve IOWrapper.recv_io(manager, UNIXSocket).to_io
         end
       end
     end
 
     def serve(client)
+      child_started = [false]
       log "got client"
       manager.puts
 
-      stdout, stderr, stdin = streams = 3.times.map { client.recv_io }
-      [STDOUT, STDERR, STDIN].zip(streams).each { |a, b| a.reopen(b) }
+      stdout, stderr, stdin = streams = receive_streams(client)
+      reopen_streams(streams)
 
       preload unless preloaded?
 
@@ -153,7 +152,7 @@ module Spring
         ActionDispatch::Reloader.prepare!
       end
 
-      pid = fork {
+      fork_child(client, streams, child_started) {
         IGNORE_SIGNALS.each { |sig| trap(sig, "DEFAULT") }
         trap("TERM", "DEFAULT")
 
@@ -180,26 +179,21 @@ module Spring
         invoke_after_fork_callbacks
         shush_backtraces
 
+        before_command
         command.call
       }
-
-      disconnect_database
-      reset_streams
-
-      log "forked #{pid}"
-      manager.puts pid
-
-      wait pid, streams, client
     rescue Exception => e
+      Kernel.exit if exiting? && e.is_a?(SystemExit)
+
       log "exception: #{e}"
-      manager.puts unless pid
+      manager.puts unless child_started[0]
 
       if streams && !e.is_a?(SystemExit)
-        print_exception(stderr, e)
+        print_exception(stderr || STDERR, e)
         streams.each(&:close)
       end
 
-      client.puts(1) if pid
+      client.puts(1) if child_started[0]
       client.close
     end
 
@@ -278,20 +272,6 @@ module Spring
       first, rest = error.backtrace.first, error.backtrace.drop(1)
       stream.puts("#{first}: #{error} (#{error.class})")
       rest.each { |line| stream.puts("\tfrom #{line}") }
-    end
-
-    def with_pty
-      PTY.open do |master, slave|
-        [STDOUT, STDERR, STDIN].each { |s| s.reopen slave }
-        Thread.new { master.read }
-        yield
-        reset_streams
-      end
-    end
-
-    def reset_streams
-      [STDOUT, STDERR].each { |stream| stream.reopen(spring_env.log_file) }
-      STDIN.reopen("/dev/null")
     end
 
     def wait(pid, streams, client)

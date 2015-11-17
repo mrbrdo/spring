@@ -1,10 +1,11 @@
+require "spring/platform"
 # This is necessary for the terminal to work correctly when we reopen stdin.
-Process.setsid
+Process.setsid if Spring.fork?
 
 require "spring/application"
 
 app = Spring::Application.new(
-  UNIXSocket.for_fd(3),
+  Spring::WorkerChannel.remote_endpoint,
   Spring::JSON.load(ENV.delete("SPRING_ORIGINAL_ENV").dup)
 )
 

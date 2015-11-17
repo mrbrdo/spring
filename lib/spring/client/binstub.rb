@@ -44,7 +44,7 @@ unless defined?(Spring)
 end
 CODE
 
-      OLD_BINSTUB = %{if !Process.respond_to?(:fork) || Gem::Specification.find_all_by_name("spring").empty?}
+      OLD_BINSTUB = %{if Gem::Specification.find_all_by_name("spring").empty?}
 
       class Item
         attr_reader :command, :existing

@@ -3,7 +3,7 @@ module Spring
 end
 
 require "spring/boot"
-require "spring/application_manager"
+require "spring/impl/application_manager"
 
 # Must be last, as it requires bundler/setup, which alters the load path
 require "spring/commands"
@@ -48,7 +48,7 @@ module Spring
       log "accepted client"
       client.puts env.version
 
-      app_client = client.recv_io
+      app_client = IOWrapper.recv_io(client)
       command    = JSON.load(client.read(client.gets.to_i))
 
       args, default_rails_env = command.values_at('args', 'default_rails_env')
