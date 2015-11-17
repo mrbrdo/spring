@@ -1,5 +1,5 @@
 require_relative "../helper"
-require "spring/process_title_updater"
+require "spring-jruby/process_title_updater"
 require "active_support/time"
 
 class ProcessTitleUpdaterTest < ActiveSupport::TestCase

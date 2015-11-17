@@ -1,5 +1,5 @@
 require_relative "../../helper"
-require 'spring/client'
+require 'spring-jruby/client'
 
 class VersionTest < ActiveSupport::TestCase
   test "outputs current version number" do

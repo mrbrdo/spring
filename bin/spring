@@ -45,5 +45,5 @@ end
 
 lib = File.expand_path("../../lib", __FILE__)
 $LOAD_PATH.unshift lib unless $LOAD_PATH.include?(lib) # enable local development
-require 'spring/client'
+require 'spring-jruby/client'
 Spring::Client.run(ARGV)

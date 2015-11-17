@@ -1,5 +1,5 @@
 require_relative "../helper"
-require "spring/commands"
+require "spring-jruby/commands"
 
 class CommandsTest < ActiveSupport::TestCase
   test 'console command sets rails environment from command-line option' do
